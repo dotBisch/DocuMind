@@ -4,7 +4,43 @@
 
 ## Chunking Strategy
 
-_TBD — Phase 3/5_
+**Recursive character splitting, measured in tokens** (tiktoken
+`cl100k_base` — the same encoding the embedding model uses), configured in
+`app/config.py`:
+
+- **600 tokens per chunk** — mid-range of the 500–800 band. Small enough
+  that a retrieved chunk is mostly signal for the question that matched
+  it; large enough that a procedure or explanation usually survives in
+  one piece. Starting point, not gospel — Phase 5 tunes this against the
+  eval set and logs each iteration below.
+- **75-token overlap (12.5%)** — a sentence that straddles a chunk
+  boundary appears whole in at least one chunk, so boundary placement
+  can't hide an answer.
+- **Why recursive splitting** (vs fixed-size): it prefers paragraph, then
+  sentence, then word boundaries, so chunks tend to align with the
+  document's own structure instead of cutting mid-thought.
+- **Why token-measured** (vs characters): the 500–800 budget is only
+  enforceable if we count tokens the way the embedding model does;
+  character counts drift ±30% depending on prose density.
+- Page metadata is preserved through splitting so answers can cite
+  page numbers.
+
+## Embedding Model
+
+**Gemini `gemini-embedding-001`, truncated to 1536 dims** (config:
+`app/config.py`). Chosen over OpenAI `text-embedding-3-small` mid-build:
+the free tier makes the demo reproducible at zero cost, which fits the
+portfolio goal. Notes:
+
+- The model is Matryoshka-trained: its native 3072 dims can be truncated
+  at request time (`output_dimensionality=1536`) with minimal quality
+  loss, and 1536 matches the existing `vector(1536)` column — no
+  migration needed.
+- Truncated vectors aren't re-normalized, but our index uses **cosine**
+  distance, which is scale-invariant — so no renormalization step.
+- Tradeoff accepted: free-tier rate limits (requests/tokens per minute)
+  cap ingestion throughput; fine at demo scale, would swap to a paid
+  tier or self-hosted model in production.
 
 ## Index Choice (HNSW vs IVFFlat)
 
