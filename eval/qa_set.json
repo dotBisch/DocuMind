@@ -1,0 +1,142 @@
+[
+  {
+    "id": 1,
+    "doc": "requests-docs.pdf",
+    "question": "How do I set separate connect and read timeouts for a request?",
+    "expected_substring": "(3.05, 27)",
+    "expected_answer": "Pass a tuple to the timeout parameter: the first value is the connect timeout, the second the read timeout, e.g. requests.get(url, timeout=(3.05, 27))."
+  },
+  {
+    "id": 2,
+    "doc": "requests-docs.pdf",
+    "question": "How can I see the redirect chain a request followed?",
+    "expected_substring": "history",
+    "expected_answer": "Use the response's .history attribute, which contains the Response objects of the redirects in order."
+  },
+  {
+    "id": 3,
+    "doc": "requests-docs.pdf",
+    "question": "How do I download a large response without loading it all into memory?",
+    "expected_substring": "stream=True",
+    "expected_answer": "Pass stream=True to the request and iterate over the response (e.g. iter_content) instead of accessing the full body at once."
+  },
+  {
+    "id": 4,
+    "doc": "requests-docs.pdf",
+    "question": "How do I send a request with HTTP Basic authentication?",
+    "expected_substring": "HTTPBasicAuth",
+    "expected_answer": "Pass an auth tuple like auth=('user', 'pass') or use requests.auth.HTTPBasicAuth."
+  },
+  {
+    "id": 5,
+    "doc": "requests-docs.pdf",
+    "question": "How do I disable SSL certificate verification for a request?",
+    "expected_substring": "verify=False",
+    "expected_answer": "Pass verify=False to the request (not recommended outside testing)."
+  },
+  {
+    "id": 6,
+    "doc": "requests-docs.pdf",
+    "question": "How do I route my requests through a proxy?",
+    "expected_substring": "proxies",
+    "expected_answer": "Pass a proxies dict mapping scheme to proxy URL to the request, or set HTTP_PROXY/HTTPS_PROXY environment variables."
+  },
+  {
+    "id": 7,
+    "doc": "requests-docs.pdf",
+    "question": "What exception does requests raise when a request times out?",
+    "expected_substring": "Timeout",
+    "expected_answer": "requests.exceptions.Timeout (with ConnectTimeout/ReadTimeout as specific variants)."
+  },
+  {
+    "id": 8,
+    "doc": "requests-docs.pdf",
+    "question": "How do I upload a file as part of a POST request?",
+    "expected_substring": "files=",
+    "expected_answer": "Pass a files dict to requests.post, e.g. files={'file': open('report.xls', 'rb')} — it's sent as multipart/form-data."
+  },
+  {
+    "id": 9,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "How do I run only the tests whose names match a keyword expression?",
+    "expected_substring": "-k",
+    "expected_answer": "Use the -k command line option with an expression, e.g. pytest -k 'MyClass and not method'."
+  },
+  {
+    "id": 10,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "Which decorator do I use to run a pytest test with multiple sets of arguments?",
+    "expected_substring": "pytest.mark.parametrize",
+    "expected_answer": "@pytest.mark.parametrize, giving argument names and a list of value sets."
+  },
+  {
+    "id": 11,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "How do I mark a test that I expect to fail?",
+    "expected_substring": "xfail",
+    "expected_answer": "Mark it with @pytest.mark.xfail."
+  },
+  {
+    "id": 12,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "How do I skip a test only when a condition is true?",
+    "expected_substring": "skipif",
+    "expected_answer": "Use @pytest.mark.skipif(condition, reason=...)."
+  },
+  {
+    "id": 13,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "Which built-in pytest fixture provides a temporary directory unique to each test?",
+    "expected_substring": "tmp_path",
+    "expected_answer": "The tmp_path fixture (a pathlib.Path unique per test)."
+  },
+  {
+    "id": 14,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "Where should I define fixtures so they can be shared by tests in multiple files?",
+    "expected_substring": "conftest.py",
+    "expected_answer": "In a conftest.py file; fixtures defined there are available to tests in that directory tree without importing."
+  },
+  {
+    "id": 15,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "How do I list the fixtures available to my tests?",
+    "expected_substring": "--fixtures",
+    "expected_answer": "Run pytest --fixtures to list available fixtures."
+  },
+  {
+    "id": 16,
+    "doc": "pytest-docs-p1-100.pdf",
+    "question": "Which decorator registers a function as a pytest fixture?",
+    "expected_substring": "@pytest.fixture",
+    "expected_answer": "@pytest.fixture."
+  },
+  {
+    "id": 17,
+    "doc": "mypy-docs-p1-100.pdf",
+    "question": "How can I check what type mypy infers for an expression?",
+    "expected_substring": "reveal_type",
+    "expected_answer": "Use reveal_type(expr); mypy prints the inferred type when checking (remove it before running the code)."
+  },
+  {
+    "id": 18,
+    "doc": "mypy-docs-p1-100.pdf",
+    "question": "How do I silence a mypy error on a specific line?",
+    "expected_substring": "# type: ignore",
+    "expected_answer": "Add a # type: ignore comment to that line (optionally with the error code in brackets)."
+  },
+  {
+    "id": 19,
+    "doc": "mypy-docs-p1-100.pdf",
+    "question": "Which mypy flag makes it an error to define a function without type annotations?",
+    "expected_substring": "disallow-untyped-defs",
+    "expected_answer": "--disallow-untyped-defs."
+  },
+  {
+    "id": 20,
+    "doc": "mypy-docs-p1-100.pdf",
+    "question": "What type should I use for a variable that can be either a string or None?",
+    "expected_substring": "Optional",
+    "expected_answer": "Optional[str] (equivalently str | None)."
+  }
+]

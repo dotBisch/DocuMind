@@ -8,3 +8,6 @@ env/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+eval/.session_id
+eval/last_run.json
+eval/.judge_progress.json

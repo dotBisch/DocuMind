@@ -92,9 +92,57 @@ only from numbered excerpts, cite inline, and return a fixed
 manually: an out-of-scope question ("capital of France?") returns the
 not-found string rather than world knowledge.
 
+## Eval Methodology
+
+20 curated Q&A pairs (`eval/qa_set.json`) against 3 real public docs
+(~245 pages total — see `eval/test_docs/SOURCE.md`), run by
+`eval/run_eval.py`. Two separate metrics:
+
+- **Retrieval accuracy** (the >90% target): each pair carries an
+  `expected_substring` that must appear in one of the k retrieved
+  chunks (whitespace/case-normalized). Objective — no judge, no LLM
+  cost — so it runs in CI as a regression gate on every push to main.
+- **Answer accuracy** (`--judge` flag): LLM-as-judge grades the final
+  answer against a ground-truth answer, strict PASS/FAIL. Opt-in rather
+  than CI-default because of quota: the answer model's free tier is
+  **20 requests/day** — exactly one eval's worth. The judge therefore
+  runs on a separate lite model (daily quotas are per-model, so it gets
+  its own 20/day), and per-question progress is persisted so a mid-run
+  quota failure resumes instead of restarting. Judging on a different
+  model than the one being graded also mildly reduces self-preference
+  bias.
+
+Every substring was validated to exist in the ingested chunks before
+the pair entered the set — a question whose answer isn't in the corpus
+measures nothing. The eval session is ingested once and persisted
+(`eval/.session_id` / `EVAL_SESSION_ID`), so eval runs don't re-embed
+the corpus and results aren't confounded by ingestion variance.
+
 ## Eval Iteration Log
 
-_TBD — Phase 5_
+| # | Date | Config (chunk/overlap/k) | Retrieval | Answer | Change & reasoning |
+|---|---|---|---|---|---|
+| 0 | 2026-08-03 | 600 / 75 / 4 | **95%** (19/20) | _pending_ | Baseline — no tuning yet. |
+
+**Baseline failure analysis (Q15, "list available fixtures"):** the
+`--fixtures` chunk doesn't appear even at k=10. Two root causes, both
+visible in the top-10: (1) table-of-contents chunks — dot-leader lines
+with high lexical overlap with everything — pollute the ranking; (2) the
+pytest/mypy PDFs extract with glued words ("Howtoinvokepytest"), which
+degrades embedding quality for those chunks. Candidate fixes if the
+target were at risk: filter low-alpha/TOC-like chunks at ingestion, or
+switch corpus format from PDF to HTML/text. **Deliberately not tuned:**
+baseline already exceeds the 90% target, and optimizing for one eval
+question invites overfitting the eval set (and gold-plating past the
+project's stated scope).
+
+**A note on eval integrity:** the first corpus draft included
+`click.readthedocs.io` docs that turned out to be Ubuntu's "Click
+Packages" project, not the Python click library — caught because every
+`expected_substring` is validated against the ingested chunks before a
+pair enters the set. A Q&A pair whose answer isn't in the corpus
+measures nothing; validation is what makes the accuracy number mean
+something.
 
 ## Known Limitations / What I'd Do Differently at Scale
 
