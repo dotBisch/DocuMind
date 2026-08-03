@@ -78,6 +78,20 @@ server-side, can touch the data.
 
 _TBD — Phase 4_
 
+## LLM & Grounding
+
+`gemini-3-flash-preview`, temperature 0 (config: `app/config.py`). New
+Gemini API accounts have zero free-tier quota on the older GA models, so
+the pinned preview is the only fixed free option — pinned over the
+`gemini-flash-latest` alias because the eval accuracy number is only
+meaningful against a fixed model.
+
+Grounding is enforced in the prompt (`app/retrieval/prompt.py`): answer
+only from numbered excerpts, cite inline, and return a fixed
+"couldn't find" string when the context lacks the answer. Verified
+manually: an out-of-scope question ("capital of France?") returns the
+not-found string rather than world knowledge.
+
 ## Eval Iteration Log
 
 _TBD — Phase 5_

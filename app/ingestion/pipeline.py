@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.db.client import get_client
+from app.embeddings import embed_texts
 from app.ingestion.chunker import chunk_documents
-from app.ingestion.embedder import embed_texts
 from app.ingestion.loader import load_document
 
 logger = logging.getLogger(__name__)

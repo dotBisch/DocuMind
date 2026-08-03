@@ -1,5 +1,11 @@
-"""Embedding generation. The model is set in app.config (never here) so
-swapping providers is a config change plus a schema migration."""
+"""Embedding generation — shared by BOTH pipelines (ingestion embeds
+chunks, retrieval embeds queries). It lives outside ingestion/ and
+retrieval/ deliberately: query and chunk vectors must come from the same
+model/dimension or similarity search silently degrades, so the embedder
+is the shared contract between the two, not part of either.
+
+The model is set in app.config (never here) so swapping providers is a
+config change plus a schema migration."""
 
 import logging
 import time

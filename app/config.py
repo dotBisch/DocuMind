@@ -32,3 +32,13 @@ CHUNK_OVERLAP_TOKENS = 75
 
 # How many chunks the similarity search returns per query (Phase 4/5).
 RETRIEVAL_K = 4
+
+# Grounded answering is a retrieval problem more than a model problem
+# at this scale, so: the fastest model with actual free-tier quota.
+# Pinned (not gemini-flash-latest) because Phase 5's measured accuracy
+# is only meaningful against a fixed model; the -latest alias can change
+# models silently. Preview caveat accepted — new accounts get zero
+# free-tier quota on the older GA models (2.0/2.5-flash), so preview is
+# the only pinned free option. Temperature 0: deterministic Q&A.
+LLM_MODEL = "gemini-3-flash-preview"
+LLM_TEMPERATURE = 0.0
