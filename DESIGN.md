@@ -122,7 +122,14 @@ the corpus and results aren't confounded by ingestion variance.
 
 | # | Date | Config (chunk/overlap/k) | Retrieval | Answer | Change & reasoning |
 |---|---|---|---|---|---|
-| 0 | 2026-08-03 | 600 / 75 / 4 | **95%** (19/20) | _pending_ | Baseline — no tuning yet. |
+| 0 | 2026-08-03 | 600 / 75 / 4 | **95%** (19/20) | **95%** (19/20) | Baseline — no tuning needed; both metrics above target. |
+
+The answer-accuracy failure is the same question as the retrieval
+failure (Q15): retrieval never surfaced the `--fixtures` chunk, the
+grounded prompt correctly answered "not found", and the judge failed
+it. That's the desired failure mode — **when retrieval misses, the
+system admits it rather than hallucinating.** Retrieval quality is the
+accuracy ceiling; generation is faithful to it.
 
 **Baseline failure analysis (Q15, "list available fixtures"):** the
 `--fixtures` chunk doesn't appear even at k=10. Two root causes, both
