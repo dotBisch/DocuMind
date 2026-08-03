@@ -55,9 +55,10 @@ Chose **HNSW with cosine distance** (`vector_cosine_ops`) over IVFFlat:
 - **Cost:** HNSW uses more memory and builds slower, but at our row counts
   that's negligible. At 10M+ vectors this decision would need revisiting
   (IVFFlat or partitioning by tenant).
-- **Cosine distance** matches how OpenAI-style embedding models are trained;
-  their vectors are normalized, so cosine and inner product are equivalent,
-  and cosine is the conventional/safer default.
+- **Cosine distance** is the safe default for text-embedding models
+  (which are trained for angular similarity), and it's scale-invariant —
+  which later mattered: Gemini's dimension-truncated vectors arrive
+  un-renormalized, and cosine handles that for free.
 
 ## Session Isolation Approach
 
@@ -73,10 +74,6 @@ Defense in depth: **RLS is enabled on all three tables with no policies
 defined**, so Supabase's auto-generated public REST API (anon key) can't
 read or write anything. Only the backend, holding the service_role key
 server-side, can touch the data.
-
-## Session Isolation Approach
-
-_TBD — Phase 4_
 
 ## LLM & Grounding
 
