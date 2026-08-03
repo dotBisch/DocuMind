@@ -11,3 +11,6 @@ env/
 eval/.session_id
 eval/last_run.json
 eval/.judge_progress.json
+
+.vercel
+.env*

@@ -1,28 +1,31 @@
 # DocuMind
 
-**Ask questions against your documents — answers grounded in their content, with cited sources.**
+DocuMind is a question-and-answer tool for documents. It uses
+retrieval-augmented generation (RAG).
 
-DocuMind is a retrieval-augmented generation (RAG) tool framed as an internal
-knowledge-base assistant: upload runbooks, handbooks, or technical docs into a
-session, then ask questions answered *only* from that session's content. When
-the answer isn't in the documents, it says so instead of guessing.
+You upload documents into a session. Then you ask questions about them.
+DocuMind makes each answer only from the content of your documents. Each
+answer shows its source passages. If your documents do not contain the
+answer, DocuMind tells you. It does not guess.
 
 **Live demo:** https://documind-henna-nu.vercel.app
-*(runs on free-tier LLM quota — if you get a "quota exhausted" message, try again later)*
+The demo uses a free LLM quota. If you see a "quota exhausted" message,
+try again later.
 
-## Results (measured, not aspirational)
+## Results
+
+The table below shows measured results. The repository contains the script
+that made each measurement.
 
 | Metric | Result | Method |
 |---|---|---|
-| Retrieval accuracy | **95%** (19/20) | expected content present in top-k retrieved chunks, objective substring check — `eval/run_eval.py` |
-| Answer accuracy | **95%** (19/20) | LLM-as-judge (separate model) vs ground-truth answers — `eval/run_eval.py --judge` |
-| Semantic search p95 | **917ms** sequential, **912ms** under 8-way concurrency | 60 timed searches over a 362-chunk corpus — `scripts/measure_latency.py` |
+| Retrieval accuracy | **95%** (19/20) | `eval/run_eval.py` checks that the expected content is in the top-k retrieved chunks. This check is an objective substring match. |
+| Answer accuracy | **95%** (19/20) | `eval/run_eval.py --judge` uses a second LLM to grade each answer against a ground-truth answer. |
+| Search latency, p95 | **917 ms** sequential, **912 ms** with 8 parallel clients | `scripts/measure_latency.py` times 60 searches on a 362-chunk corpus. |
 
-The single failure in both metrics is the *same* question: retrieval missed
-the relevant chunk, the grounded prompt answered "not found", and the judge
-failed it — i.e. when retrieval misses, the system admits it rather than
-hallucinating. Full methodology, iteration log, and failure analysis in
-[DESIGN.md](DESIGN.md).
+The two failed checks are the same question. Retrieval did not find the
+correct chunk. The system then answered "not found". It did not invent an
+answer. See [DESIGN.md](DESIGN.md) for the full analysis.
 
 ## How it works
 
@@ -40,65 +43,80 @@ hallucinating. Full methodology, iteration log, and failure analysis in
                           top-k chunks ─► grounded prompt ─► LLM ─► answer + cited sources
 ```
 
-- **Session isolation is enforced in the database**: similarity search runs
-  through a SQL function that takes `session_id` as a parameter and filters
-  inside — no API code path can return another session's chunks. RLS is
-  enabled on all tables as defense in depth.
-- **Ingestion and retrieval are decoupled pipelines** sharing one contract:
-  the embedder (`app/embeddings.py`) — queries and chunks must live in the
-  same vector space.
-- **The eval set is the core artifact**: 20 Q&A pairs against real public
-  docs, every pair validated to be answerable from the ingested corpus, run
-  in CI as a regression gate.
+- The database enforces session isolation. The similarity search runs in a
+  SQL function. The function filters by `session_id` before it ranks
+  chunks. No API code path can return chunks from a different session.
+  Row Level Security (RLS) is on for all tables as a second layer.
+- Ingestion and retrieval are two separate pipelines. They share one
+  module: the embedder (`app/embeddings.py`). Query vectors and chunk
+  vectors must come from the same model.
+- The eval set is the core artifact of this project. It contains 20
+  question-answer pairs against real public documents. Each pair is
+  validated against the ingested corpus. CI runs the eval as a regression
+  gate.
 
-**Stack:** FastAPI · LangChain · Supabase Postgres + pgvector (HNSW, cosine) ·
-Gemini (embeddings + LLM) · Vercel
+**Stack:** FastAPI · LangChain · Supabase Postgres + pgvector (HNSW,
+cosine) · Gemini (embeddings + LLM) · Vercel
 
 ## Quickstart
 
-Prereqs: Python 3.12, a [Supabase](https://supabase.com) project, a
-[Gemini API key](https://aistudio.google.com) (free tier works).
+Before you start, you need:
+
+- Python 3.12
+- A [Supabase](https://supabase.com) project
+- A [Gemini API key](https://aistudio.google.com) (the free tier is
+  sufficient)
+
+Do these steps:
+
+1. Clone the repository and install the dependencies:
+   ```bash
+   git clone https://github.com/dotBisch/DocuMind.git && cd DocuMind
+   python -m venv .venv && .venv/Scripts/activate   # on unix: source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. Open the Supabase SQL editor. Paste the content of
+   `app/db/schema.sql`. Run it.
+3. Copy `.env.example` to `.env`. Fill in `SUPABASE_URL`, `SUPABASE_KEY`
+   (the secret key), and `GEMINI_API_KEY`.
+4. Test the database connection:
+   ```bash
+   python -m scripts.smoke_test_db
+   ```
+5. Start the server:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+6. Open http://127.0.0.1:8000 in a browser. Start a session. Upload a
+   document. Ask a question.
+
+To run the tests and the measurements:
 
 ```bash
-git clone https://github.com/dotBisch/DocuMind.git && cd DocuMind
-python -m venv .venv && .venv/Scripts/activate   # Windows; use bin/activate on unix
-pip install -r requirements.txt
-
-# 1. database: paste app/db/schema.sql into the Supabase SQL editor and run it
-# 2. credentials
-cp .env.example .env    # fill in SUPABASE_URL, SUPABASE_KEY (secret key), GEMINI_API_KEY
-# 3. sanity check the database wiring
-python -m scripts.smoke_test_db
-# 4. run
-uvicorn app.main:app --reload
-```
-
-Open http://127.0.0.1:8000 — upload a PDF, ask a question.
-
-```bash
-pytest                                # unit + integration tests (live tests skip without credentials)
-python -m eval.run_eval --ingest      # one-time: build the eval corpus session
-python -m eval.run_eval               # retrieval accuracy
-python -m eval.run_eval --judge       # + LLM-judged answer accuracy
-python -m scripts.measure_latency     # p50/p95 search latency
+pytest                                # tests that need credentials skip without them
+python -m eval.run_eval --ingest      # do this once: build the eval corpus session
+python -m eval.run_eval               # measure retrieval accuracy
+python -m eval.run_eval --judge       # also measure answer accuracy
+python -m scripts.measure_latency     # measure search latency
 ```
 
 ## Why these documents?
 
-The eval corpus (`eval/test_docs/`) is real public technical documentation —
-the requests, pytest, and mypy docs — because that's exactly the genre of
-material an internal engineering knowledge base holds: library guides,
-how-tos, reference pages. Real docs make the demo credible and the eval
-reproducible by anyone; sources and licenses in
-[eval/test_docs/SOURCE.md](eval/test_docs/SOURCE.md).
+The eval corpus (`eval/test_docs/`) contains real public technical
+documentation: the requests, pytest, and mypy docs. An internal knowledge
+base holds the same type of material: library guides, how-to documents,
+and reference pages. Real documents make the demo credible. They also make
+the eval reproducible by anyone. See
+[eval/test_docs/SOURCE.md](eval/test_docs/SOURCE.md) for sources and
+licenses.
 
-## Repo tour
+## Repository tour
 
-| Path | What |
+| Path | Content |
 |---|---|
-| `app/ingestion/` | upload → load → chunk → embed → store pipeline |
-| `app/retrieval/` | session-scoped search → grounded prompt → answer |
-| `app/embeddings.py` | the shared embedder (the contract between the two pipelines) |
-| `app/db/schema.sql` | single source of truth: tables, HNSW index, `match_chunks` |
-| `eval/` | the 20-pair eval set, harness, and test corpus |
-| `DESIGN.md` | every non-obvious decision + the eval iteration log |
+| `app/ingestion/` | The upload pipeline: load, chunk, embed, store |
+| `app/retrieval/` | Session-scoped search, grounded prompt, answer |
+| `app/embeddings.py` | The shared embedder for both pipelines |
+| `app/db/schema.sql` | The single source of truth: tables, HNSW index, `match_chunks` |
+| `eval/` | The 20-pair eval set, the harness, and the test corpus |
+| `DESIGN.md` | Each non-obvious decision, with its rationale and the eval iteration log |

@@ -1,20 +1,21 @@
 # Test Document Sources
 
-Real, public technical documentation — chosen because it's exactly the
-kind of material an internal engineering knowledge base holds (library
-guides, how-tos, reference pages), and anyone can re-download it to
-reproduce the eval.
+These are real, public technical documents. An internal knowledge base
+holds the same type of material: library guides, how-to documents, and
+reference pages. Anyone can download these documents again and reproduce
+the eval.
 
 | File | Source | Retrieved | Notes |
 |---|---|---|---|
-| `requests-docs.pdf` | https://requests.readthedocs.io/_/downloads/en/stable/pdf/ (Requests 2.34.2) | 2026-08-03 | 125 pages, used as-is |
-| `pytest-docs-p1-100.pdf` | https://pytest.readthedocs.io/_/downloads/en/stable/pdf/ | 2026-08-03 | First 100 of 563 pages (project's 100-page doc limit); covers get-started, fixtures, marks, parametrize |
-| `mypy-docs-p1-100.pdf` | https://mypy.readthedocs.io/_/downloads/en/stable/pdf/ (mypy 2.3.0) | 2026-08-03 | First 100 of 370 pages (project's 100-page doc limit) |
+| `requests-docs.pdf` | https://requests.readthedocs.io/_/downloads/en/stable/pdf/ (Requests 2.34.2) | 2026-08-03 | 125 pages, complete |
+| `pytest-docs-p1-100.pdf` | https://pytest.readthedocs.io/_/downloads/en/stable/pdf/ | 2026-08-03 | The first 100 of 563 pages. The project supports documents up to 100 pages. This part contains get-started, fixtures, marks, and parametrize. |
+| `mypy-docs-p1-100.pdf` | https://mypy.readthedocs.io/_/downloads/en/stable/pdf/ (mypy 2.3.0) | 2026-08-03 | The first 100 of 370 pages. Same 100-page limit. |
 
-> Note: an earlier candidate from `click.readthedocs.io` turned out to be
-> Ubuntu's "Click Packages" docs, not the Python click library — caught by
-> validating eval substrings against the ingested corpus. Replaced with mypy.
+All three projects use BSD or MIT family licenses. The documents are
+included here for evaluation, with attribution. The only change is the
+page trim on the pytest and mypy files.
 
-All three are BSD/MIT-family licensed open-source project docs,
-redistributed here unmodified (except the pytest page trim) for
-evaluation purposes with attribution.
+> Note: an earlier corpus draft used a PDF from `click.readthedocs.io`.
+> That site hosts Ubuntu's "Click Packages" documentation, not the Python
+> click library. The eval substring validation caught this error. The
+> mypy documentation replaced it.

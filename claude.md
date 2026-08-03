@@ -62,6 +62,10 @@ don't let it go undocumented.
 
 ## Documentation deliverables (required, not optional)
 
+- All documentation and README files follow **ASD-STE100** (Simplified
+  Technical English): short sentences, active voice, present tense, one
+  instruction per sentence, no contractions, no idioms, consistent terms.
+
 - `DESIGN.md` — short doc explaining *why*, not just *what*: chunking
   strategy, index choice, session isolation approach, and what tradeoffs
   were considered. This is written for a technical reader deciding whether
