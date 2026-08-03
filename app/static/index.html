@@ -3,202 +3,337 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DocuMind — ask your documents</title>
+<title>DocuMind</title>
 <style>
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --ink: #1a202c; --muted: #64748b;
-    --accent: #2563eb; --accent-ink: #ffffff; --border: #e2e8f0;
-    --ok: #16a34a; --warn: #b45309; --err: #dc2626;
+    --paper: #f7f4ee; --paper-deep: #efeadf; --card: #fdfcf9;
+    --ink: #1c1917; --ink-soft: #57534e; --ink-faint: #a8a29e;
+    --line: #e2dccd; --accent: #2c5540; --accent-soft: #e8efe9;
+    --err: #9f3a2f; --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--sans); }
+
+  .app { display: flex; height: 100vh; }
+
+  /* ---------- sidebar ---------- */
+  aside {
+    width: 280px; flex-shrink: 0; display: flex; flex-direction: column;
+    background: var(--paper-deep); border-right: 1px solid var(--line);
+    padding: 28px 22px 18px;
   }
-  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 16px 80px; }
-  header { margin-bottom: 24px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 14px; }
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 10px; padding: 18px; margin-bottom: 16px;
+  .brand { font: 700 26px/1.1 var(--serif); letter-spacing: -0.02em; }
+  .brand small { display: block; font: 400 13px/1.5 var(--sans); color: var(--ink-soft); margin-top: 6px; }
+  .side-section { margin-top: 30px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .side-label {
+    font: 600 11px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-faint); margin-bottom: 12px;
   }
-  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--muted); margin: 0 0 12px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  button {
-    background: var(--accent); color: var(--accent-ink); border: 0;
-    border-radius: 8px; padding: 9px 16px; font: inherit; cursor: pointer;
+  .docs { overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+  .doc { padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .doc .name { font-weight: 600; word-break: break-all; }
+  .doc .meta { color: var(--ink-soft); font-size: 12.5px; }
+  .dropzone {
+    margin-top: 14px; border: 1.5px dashed var(--ink-faint); border-radius: 6px;
+    padding: 18px 12px; text-align: center; color: var(--ink-soft); font-size: 13px;
+    cursor: pointer; transition: border-color .15s, background .15s;
   }
-  button:disabled { opacity: .5; cursor: default; }
-  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
-  input[type=text] {
-    flex: 1; min-width: 220px; padding: 9px 12px; font: inherit;
-    border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .hint { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+  .upload-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 10px; min-height: 1em; }
+  .upload-note.err { color: var(--err); }
+
+  .session-row {
+    border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
-  input[type=file] { font: inherit; }
-  .pill { font-size: 12.5px; color: var(--muted); background: var(--bg);
-    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
-    font-family: ui-monospace, monospace; }
-  .status { font-size: 13.5px; margin-top: 10px; color: var(--muted); }
-  .status.ok { color: var(--ok); } .status.warn { color: var(--warn); } .status.err { color: var(--err); }
-  .doclist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--muted); }
-  .doclist li { padding: 2px 0; }
-  .answer { white-space: pre-wrap; }
-  .sources { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
-  .source { font-size: 13px; color: var(--muted); padding: 8px 10px; margin-top: 6px;
-    background: var(--bg); border-radius: 8px; }
-  .source b { color: var(--ink); font-weight: 600; }
-  .spinner { display: inline-block; width: 14px; height: 14px; vertical-align: -2px;
-    border: 2px solid var(--border); border-top-color: var(--accent);
-    border-radius: 50%; animation: spin .8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .hidden { display: none; }
+  .session-id { font: 11.5px var(--mono); color: var(--ink-faint); }
+  .linklike {
+    background: none; border: none; padding: 0; font: 600 12.5px var(--sans);
+    color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  /* ---------- main ---------- */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .thread { flex: 1; overflow-y: auto; padding: 44px clamp(20px, 6vw, 80px) 24px; }
+  .thread-inner { max-width: 640px; margin: 0 auto; }
+
+  .empty { color: var(--ink-soft); margin-top: 8vh; }
+  .empty h2 { font: 600 21px var(--serif); color: var(--ink); margin: 0 0 8px; }
+  .empty p { margin: 0 0 6px; max-width: 46ch; }
+
+  .qa { margin-bottom: 40px; }
+  .qa .q {
+    font: 600 19px/1.4 var(--serif); letter-spacing: -0.01em;
+    padding-left: 14px; border-left: 3px solid var(--accent); margin-bottom: 14px;
+  }
+  .qa .a { white-space: pre-wrap; }
+  .qa .a.pending { color: var(--ink-soft); }
+  .qa .a.error { color: var(--err); }
+  details.sources { margin-top: 12px; }
+  details.sources summary {
+    cursor: pointer; font: 600 12.5px var(--sans); color: var(--ink-soft);
+    list-style: none; display: inline-block;
+  }
+  details.sources summary::before { content: "▸ "; }
+  details.sources[open] summary::before { content: "▾ "; }
+  .source {
+    margin-top: 8px; padding: 10px 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 6px; font-size: 13px; color: var(--ink-soft);
+  }
+  .source .tag { font: 600 11.5px var(--mono); color: var(--accent); }
+
+  .composer { border-top: 1px solid var(--line); background: var(--paper); padding: 16px clamp(20px, 6vw, 80px) 22px; }
+  .composer-inner { max-width: 640px; margin: 0 auto; display: flex; gap: 10px; }
+  .composer input {
+    flex: 1; font: 15px var(--sans); color: var(--ink);
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+  }
+  .composer input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  .composer button {
+    font: 600 14.5px var(--sans); color: #fff; background: var(--accent);
+    border: none; border-radius: 8px; padding: 0 22px; cursor: pointer;
+  }
+  .composer button:disabled { opacity: .45; cursor: default; }
+  .composer-hint { max-width: 640px; margin: 8px auto 0; font-size: 12px; color: var(--ink-faint); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    font: 13px var(--sans); color: var(--accent); background: var(--accent-soft);
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 13px; cursor: pointer;
+  }
+  .chip:hover { border-color: var(--accent); }
+
+  @media (max-width: 720px) {
+    .app { flex-direction: column; }
+    aside { width: 100%; flex-direction: column; padding: 18px 20px; }
+    .side-section { margin-top: 14px; }
+    .thread { padding-top: 20px; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>DocuMind</h1>
-    <div class="sub">Upload documents, then ask questions answered only from their content — with cited sources.</div>
-  </header>
-
-  <div class="card">
-    <h2>Session</h2>
-    <div class="row">
-      <span id="sessionPill" class="pill">no session</span>
-      <button id="newSession" class="ghost">New session</button>
+<div class="app">
+  <aside>
+    <div class="brand">DocuMind
+      <small>Answers come only from what you upload — with sources.</small>
     </div>
-    <div class="status">Documents and questions are scoped to the current session.</div>
-  </div>
 
-  <div class="card">
-    <h2>1 · Upload a document</h2>
-    <div class="row">
-      <input type="file" id="file" accept=".pdf,.txt,.md">
-      <button id="upload">Upload</button>
+    <div class="side-section">
+      <div class="side-label">Documents</div>
+      <ul class="docs" id="docs"></ul>
+      <div class="dropzone" id="dropzone">
+        <div>Add a document</div>
+        <div class="hint">drop a file or click — PDF, TXT, MD · up to 100 pages</div>
+      </div>
+      <input type="file" id="file" accept=".pdf,.txt,.md" hidden>
+      <div class="upload-note" id="uploadNote"></div>
     </div>
-    <div id="uploadStatus" class="status"></div>
-    <ul id="docs" class="doclist"></ul>
-  </div>
 
-  <div class="card">
-    <h2>2 · Ask a question</h2>
-    <div class="row">
-      <input type="text" id="question" placeholder="e.g. How do I set a timeout?" maxlength="2000">
-      <button id="ask">Ask</button>
+    <div class="session-row">
+      <span class="session-id" id="sessionId">no session</span>
+      <button class="linklike" id="newSession" title="Start over with an empty session">start fresh</button>
     </div>
-    <div id="askStatus" class="status"></div>
-  </div>
+  </aside>
 
-  <div id="answerCard" class="card hidden">
-    <h2>Answer</h2>
-    <div id="answer" class="answer"></div>
-    <div id="sources" class="sources"></div>
-  </div>
+  <main>
+    <div class="thread" id="thread">
+      <div class="thread-inner" id="threadInner"></div>
+    </div>
+    <div class="composer">
+      <div class="composer-inner">
+        <input type="text" id="question" placeholder="Ask about your documents…" maxlength="2000" autocomplete="off">
+        <button id="ask">Ask</button>
+      </div>
+      <div class="composer-hint">Enter to send · answers cite the passages they came from</div>
+    </div>
+  </main>
 </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
   let sessionId = localStorage.getItem("documind_session");
+  let docs = [];
+  let thread = [];
 
-  function showSession() {
-    $("sessionPill").textContent = sessionId ? sessionId : "no session";
-  }
+  const store = () => {
+    if (!sessionId) return;
+    localStorage.setItem("documind_state_" + sessionId, JSON.stringify({ docs, thread }));
+  };
+  const restore = () => {
+    if (!sessionId) return;
+    try {
+      const s = JSON.parse(localStorage.getItem("documind_state_" + sessionId) || "{}");
+      docs = s.docs || []; thread = s.thread || [];
+    } catch { docs = []; thread = []; }
+  };
 
   async function api(path, options) {
     const res = await fetch(path, options);
     let body = null;
-    try { body = await res.json(); } catch { /* non-JSON error page */ }
-    if (!res.ok) {
-      const detail = body && body.detail ? body.detail : `HTTP ${res.status}`;
-      throw new Error(detail);
-    }
+    try { body = await res.json(); } catch { /* non-JSON body */ }
+    if (!res.ok) throw new Error((body && body.detail) || `request failed (${res.status})`);
     return body;
   }
 
   async function ensureSession() {
-    if (sessionId) return sessionId;
+    if (sessionId) return;
     const body = await api("/sessions", { method: "POST" });
     sessionId = body.session_id;
     localStorage.setItem("documind_session", sessionId);
-    showSession();
-    return sessionId;
+    renderSession();
   }
 
-  $("newSession").onclick = async () => {
-    localStorage.removeItem("documind_session");
-    sessionId = null;
-    $("docs").innerHTML = "";
-    $("answerCard").classList.add("hidden");
-    try { await ensureSession(); } catch (e) { $("sessionPill").textContent = "error: " + e.message; }
-  };
+  /* ---------- rendering ---------- */
+  function renderSession() {
+    $("sessionId").textContent = sessionId ? "session " + sessionId.slice(0, 8) + "…" : "no session";
+  }
 
-  $("upload").onclick = async () => {
-    const file = $("file").files[0];
-    const status = $("uploadStatus");
-    if (!file) { status.className = "status warn"; status.textContent = "Choose a file first."; return; }
-    $("upload").disabled = true;
-    status.className = "status";
-    status.innerHTML = '<span class="spinner"></span> Uploading and embedding — large documents can take several minutes (rate-limited embedding), leave this tab open…';
+  function renderDocs() {
+    $("docs").innerHTML = "";
+    for (const d of docs) {
+      const li = document.createElement("li");
+      li.className = "doc";
+      li.innerHTML = `<div class="name"></div><div class="meta">${d.pages} page${d.pages === 1 ? "" : "s"} · ${d.chunks} passages</div>`;
+      li.querySelector(".name").textContent = d.name;
+      $("docs").appendChild(li);
+    }
+  }
+
+  function renderThread() {
+    const el = $("threadInner");
+    el.innerHTML = "";
+    if (!thread.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.innerHTML = docs.length
+        ? `<h2>Ready when you are.</h2><p>Ask anything about the documents on the left.</p>`
+        : `<h2>Start by adding a document.</h2>
+           <p>DocuMind answers questions using only what you upload — internal runbooks,
+           handbooks, technical docs.</p>
+           <p>When the answer isn't in your documents, it says so instead of guessing.</p>`;
+      if (docs.length) {
+        const chips = document.createElement("div");
+        chips.className = "chips";
+        ["What is this document about?", "Summarize the key steps.", "What should I watch out for?"]
+          .forEach((q) => {
+            const b = document.createElement("button");
+            b.className = "chip"; b.textContent = q;
+            b.onclick = () => { $("question").value = q; ask(); };
+            chips.appendChild(b);
+          });
+        empty.appendChild(chips);
+      }
+      el.appendChild(empty);
+      return;
+    }
+    for (const item of thread) {
+      const qa = document.createElement("div");
+      qa.className = "qa";
+      const q = document.createElement("div");
+      q.className = "q"; q.textContent = item.q;
+      qa.appendChild(q);
+      const a = document.createElement("div");
+      a.className = "a" + (item.state === "pending" ? " pending" : item.state === "error" ? " error" : "");
+      a.textContent = item.a;
+      qa.appendChild(a);
+      if (item.sources && item.sources.length) {
+        const det = document.createElement("details");
+        det.className = "sources";
+        det.innerHTML = `<summary>${item.sources.length} source passage${item.sources.length === 1 ? "" : "s"}</summary>`;
+        item.sources.forEach((s, i) => {
+          const div = document.createElement("div");
+          div.className = "source";
+          const page = s.page !== null && s.page !== undefined ? ` · page ${s.page + 1}` : "";
+          div.innerHTML = `<span class="tag">[${i + 1}]${page}</span> `;
+          div.append(s.excerpt + "…");
+          det.appendChild(div);
+        });
+        qa.appendChild(det);
+      }
+      el.appendChild(qa);
+    }
+    $("thread").scrollTop = $("thread").scrollHeight;
+  }
+
+  /* ---------- upload ---------- */
+  const dz = $("dropzone");
+  dz.onclick = () => $("file").click();
+  dz.ondragover = (e) => { e.preventDefault(); dz.classList.add("over"); };
+  dz.ondragleave = () => dz.classList.remove("over");
+  dz.ondrop = (e) => {
+    e.preventDefault(); dz.classList.remove("over");
+    if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]);
+  };
+  $("file").onchange = () => { if ($("file").files[0]) upload($("file").files[0]); };
+
+  async function upload(file) {
+    const note = $("uploadNote");
+    note.className = "upload-note";
+    note.textContent = "Reading " + file.name + "… long documents take a few minutes.";
     try {
       await ensureSession();
       const form = new FormData();
       form.append("file", file);
       form.append("session_id", sessionId);
       const body = await api("/documents/upload", { method: "POST", body: form });
-      status.className = "status ok";
-      status.textContent = `Done: ${body.page_count} pages → ${body.chunk_count} chunks.`;
-      const li = document.createElement("li");
-      li.textContent = `📄 ${body.filename} — ${body.page_count} pages, ${body.chunk_count} chunks`;
-      $("docs").appendChild(li);
-      $("file").value = "";
+      docs.push({ name: body.filename, pages: body.page_count, chunks: body.chunk_count });
+      note.textContent = "Added " + body.filename + ".";
+      store(); renderDocs(); renderThread();
+      $("question").focus();
     } catch (e) {
-      status.className = "status err";
-      status.textContent = "Upload failed: " + e.message;
+      note.className = "upload-note err";
+      note.textContent = e.message;
     } finally {
-      $("upload").disabled = false;
+      $("file").value = "";
     }
-  };
+  }
 
+  /* ---------- ask ---------- */
   async function ask() {
     const q = $("question").value.trim();
-    const status = $("askStatus");
-    if (!q) { status.className = "status warn"; status.textContent = "Type a question first."; return; }
-    if (!sessionId) { status.className = "status warn"; status.textContent = "Upload a document first."; return; }
+    if (!q) return;
+    if (!docs.length) {
+      $("uploadNote").className = "upload-note err";
+      $("uploadNote").textContent = "Add a document first — answers only come from your uploads.";
+      return;
+    }
+    $("question").value = "";
     $("ask").disabled = true;
-    status.className = "status";
-    status.innerHTML = '<span class="spinner"></span> Retrieving and answering…';
+    const item = { q, a: "Thinking…", state: "pending", sources: [] };
+    thread.push(item);
+    renderThread();
     try {
       const body = await api("/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: sessionId, question: q }),
       });
-      status.textContent = "";
-      $("answer").textContent = body.answer;
-      const src = $("sources");
-      src.innerHTML = body.sources.length ? "<b>Sources</b>" : "";
-      body.sources.forEach((s, i) => {
-        const div = document.createElement("div");
-        div.className = "source";
-        const page = s.page !== null && s.page !== undefined ? ` · page ${s.page + 1}` : "";
-        div.innerHTML = `<b>[${i + 1}]</b>${page} · similarity ${s.similarity}<br>`;
-        div.append(s.excerpt + "…");
-        src.appendChild(div);
-      });
-      $("answerCard").classList.remove("hidden");
+      item.a = body.answer; item.sources = body.sources; item.state = "done";
     } catch (e) {
-      status.className = "status err";
-      status.textContent = "Query failed: " + e.message;
+      item.a = e.message; item.state = "error";
     } finally {
       $("ask").disabled = false;
+      store(); renderThread();
+      $("question").focus();
     }
   }
   $("ask").onclick = ask;
   $("question").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
 
-  showSession();
+  $("newSession").onclick = async () => {
+    if (sessionId) localStorage.removeItem("documind_state_" + sessionId);
+    localStorage.removeItem("documind_session");
+    sessionId = null; docs = []; thread = [];
+    renderSession(); renderDocs(); renderThread();
+    try { await ensureSession(); } catch { /* created lazily on next action */ }
+  };
+
+  restore();
+  renderSession(); renderDocs(); renderThread();
 </script>
 </body>
 </html>
