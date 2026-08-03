@@ -122,6 +122,23 @@ that session's own documents, verified by an automated test.
 
 ---
 
+## Phase 4.5 — Minimal Frontend (added 2026-08-03)
+
+**Goal:** The live demo is usable by a person, not just curl — one static page,
+no framework, served by the existing FastAPI app.
+
+- [ ] `app/static/index.html` — single file (inline CSS/JS): create/reuse a
+      session, upload a document, ask questions, render answer + cited sources
+- [ ] Serve it at `GET /` from FastAPI
+- [ ] Surface long-upload reality honestly (progress note while embedding
+      throttles) and API errors (quota, unsupported file type)
+- [ ] No new dependencies, no build step
+
+**Definition of Done:** A person with the URL can upload a PDF and get a cited
+answer without touching curl or the docs.
+
+---
+
 ## Phase 5 — Evaluation & Accuracy Tuning
 
 **Goal:** Prove the >90% accuracy target, don't just assert it.

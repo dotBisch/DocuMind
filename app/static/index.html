@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocuMind — ask your documents</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1a202c; --muted: #64748b;
+    --accent: #2563eb; --accent-ink: #ffffff; --border: #e2e8f0;
+    --ok: #16a34a; --warn: #b45309; --err: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 32px 16px 80px; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted); margin: 0 0 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button {
+    background: var(--accent); color: var(--accent-ink); border: 0;
+    border-radius: 8px; padding: 9px 16px; font: inherit; cursor: pointer;
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  input[type=text] {
+    flex: 1; min-width: 220px; padding: 9px 12px; font: inherit;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  }
+  input[type=file] { font: inherit; }
+  .pill { font-size: 12.5px; color: var(--muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px;
+    font-family: ui-monospace, monospace; }
+  .status { font-size: 13.5px; margin-top: 10px; color: var(--muted); }
+  .status.ok { color: var(--ok); } .status.warn { color: var(--warn); } .status.err { color: var(--err); }
+  .doclist { margin: 10px 0 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--muted); }
+  .doclist li { padding: 2px 0; }
+  .answer { white-space: pre-wrap; }
+  .sources { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
+  .source { font-size: 13px; color: var(--muted); padding: 8px 10px; margin-top: 6px;
+    background: var(--bg); border-radius: 8px; }
+  .source b { color: var(--ink); font-weight: 600; }
+  .spinner { display: inline-block; width: 14px; height: 14px; vertical-align: -2px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DocuMind</h1>
+    <div class="sub">Upload documents, then ask questions answered only from their content — with cited sources.</div>
+  </header>
+
+  <div class="card">
+    <h2>Session</h2>
+    <div class="row">
+      <span id="sessionPill" class="pill">no session</span>
+      <button id="newSession" class="ghost">New session</button>
+    </div>
+    <div class="status">Documents and questions are scoped to the current session.</div>
+  </div>
+
+  <div class="card">
+    <h2>1 · Upload a document</h2>
+    <div class="row">
+      <input type="file" id="file" accept=".pdf,.txt,.md">
+      <button id="upload">Upload</button>
+    </div>
+    <div id="uploadStatus" class="status"></div>
+    <ul id="docs" class="doclist"></ul>
+  </div>
+
+  <div class="card">
+    <h2>2 · Ask a question</h2>
+    <div class="row">
+      <input type="text" id="question" placeholder="e.g. How do I set a timeout?" maxlength="2000">
+      <button id="ask">Ask</button>
+    </div>
+    <div id="askStatus" class="status"></div>
+  </div>
+
+  <div id="answerCard" class="card hidden">
+    <h2>Answer</h2>
+    <div id="answer" class="answer"></div>
+    <div id="sources" class="sources"></div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let sessionId = localStorage.getItem("documind_session");
+
+  function showSession() {
+    $("sessionPill").textContent = sessionId ? sessionId : "no session";
+  }
+
+  async function api(path, options) {
+    const res = await fetch(path, options);
+    let body = null;
+    try { body = await res.json(); } catch { /* non-JSON error page */ }
+    if (!res.ok) {
+      const detail = body && body.detail ? body.detail : `HTTP ${res.status}`;
+      throw new Error(detail);
+    }
+    return body;
+  }
+
+  async function ensureSession() {
+    if (sessionId) return sessionId;
+    const body = await api("/sessions", { method: "POST" });
+    sessionId = body.session_id;
+    localStorage.setItem("documind_session", sessionId);
+    showSession();
+    return sessionId;
+  }
+
+  $("newSession").onclick = async () => {
+    localStorage.removeItem("documind_session");
+    sessionId = null;
+    $("docs").innerHTML = "";
+    $("answerCard").classList.add("hidden");
+    try { await ensureSession(); } catch (e) { $("sessionPill").textContent = "error: " + e.message; }
+  };
+
+  $("upload").onclick = async () => {
+    const file = $("file").files[0];
+    const status = $("uploadStatus");
+    if (!file) { status.className = "status warn"; status.textContent = "Choose a file first."; return; }
+    $("upload").disabled = true;
+    status.className = "status";
+    status.innerHTML = '<span class="spinner"></span> Uploading and embedding — large documents can take several minutes (rate-limited embedding), leave this tab open…';
+    try {
+      await ensureSession();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("session_id", sessionId);
+      const body = await api("/documents/upload", { method: "POST", body: form });
+      status.className = "status ok";
+      status.textContent = `Done: ${body.page_count} pages → ${body.chunk_count} chunks.`;
+      const li = document.createElement("li");
+      li.textContent = `📄 ${body.filename} — ${body.page_count} pages, ${body.chunk_count} chunks`;
+      $("docs").appendChild(li);
+      $("file").value = "";
+    } catch (e) {
+      status.className = "status err";
+      status.textContent = "Upload failed: " + e.message;
+    } finally {
+      $("upload").disabled = false;
+    }
+  };
+
+  async function ask() {
+    const q = $("question").value.trim();
+    const status = $("askStatus");
+    if (!q) { status.className = "status warn"; status.textContent = "Type a question first."; return; }
+    if (!sessionId) { status.className = "status warn"; status.textContent = "Upload a document first."; return; }
+    $("ask").disabled = true;
+    status.className = "status";
+    status.innerHTML = '<span class="spinner"></span> Retrieving and answering…';
+    try {
+      const body = await api("/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, question: q }),
+      });
+      status.textContent = "";
+      $("answer").textContent = body.answer;
+      const src = $("sources");
+      src.innerHTML = body.sources.length ? "<b>Sources</b>" : "";
+      body.sources.forEach((s, i) => {
+        const div = document.createElement("div");
+        div.className = "source";
+        const page = s.page !== null && s.page !== undefined ? ` · page ${s.page + 1}` : "";
+        div.innerHTML = `<b>[${i + 1}]</b>${page} · similarity ${s.similarity}<br>`;
+        div.append(s.excerpt + "…");
+        src.appendChild(div);
+      });
+      $("answerCard").classList.remove("hidden");
+    } catch (e) {
+      status.className = "status err";
+      status.textContent = "Query failed: " + e.message;
+    } finally {
+      $("ask").disabled = false;
+    }
+  }
+  $("ask").onclick = ask;
+  $("question").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
+
+  showSession();
+</script>
+</body>
+</html>
