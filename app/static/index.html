@@ -107,6 +107,15 @@
   }
   .chip:hover { border-color: var(--accent); }
 
+  .cta {
+    display: inline-block; margin-top: 20px; font: 600 15.5px var(--sans);
+    color: #fff; background: var(--accent); border: none; border-radius: 8px;
+    padding: 13px 26px; cursor: pointer;
+  }
+  .cta:hover { filter: brightness(1.12); }
+  .gate-note { font-size: 13px; color: var(--ink-faint); margin-top: 14px; max-width: 46ch; }
+  .disabled-zone { opacity: .45; pointer-events: none; }
+
   @media (max-width: 720px) {
     .app { flex-direction: column; }
     aside { width: 100%; flex-direction: column; padding: 18px 20px; }
@@ -155,21 +164,11 @@
 
 <script>
   const $ = (id) => document.getElementById(id);
-  let sessionId = localStorage.getItem("documind_session");
+  // Session lives in memory only — nothing persists across page loads, so
+  // a shared machine never resurrects someone else's documents/questions.
+  let sessionId = null;
   let docs = [];
   let thread = [];
-
-  const store = () => {
-    if (!sessionId) return;
-    localStorage.setItem("documind_state_" + sessionId, JSON.stringify({ docs, thread }));
-  };
-  const restore = () => {
-    if (!sessionId) return;
-    try {
-      const s = JSON.parse(localStorage.getItem("documind_state_" + sessionId) || "{}");
-      docs = s.docs || []; thread = s.thread || [];
-    } catch { docs = []; thread = []; }
-  };
 
   async function api(path, options) {
     const res = await fetch(path, options);
@@ -179,17 +178,19 @@
     return body;
   }
 
-  async function ensureSession() {
-    if (sessionId) return;
+  async function startSession() {
     const body = await api("/sessions", { method: "POST" });
     sessionId = body.session_id;
-    localStorage.setItem("documind_session", sessionId);
-    renderSession();
+    docs = []; thread = [];
+    renderSession(); renderDocs(); renderThread();
   }
 
   /* ---------- rendering ---------- */
   function renderSession() {
     $("sessionId").textContent = sessionId ? "session " + sessionId.slice(0, 8) + "…" : "no session";
+    $("dropzone").classList.toggle("disabled-zone", !sessionId);
+    $("question").disabled = !sessionId;
+    $("ask").disabled = !sessionId;
   }
 
   function renderDocs() {
@@ -209,12 +210,28 @@
     if (!thread.length) {
       const empty = document.createElement("div");
       empty.className = "empty";
+      if (!sessionId) {
+        empty.innerHTML = `<h2>Your documents, answered.</h2>
+          <p>DocuMind answers questions using only what you upload — internal runbooks,
+          handbooks, technical docs — and cites the passages it used.</p>
+          <p>When the answer isn't in your documents, it says so instead of guessing.</p>
+          <button class="cta" id="startSession">Start a session</button>
+          <div class="gate-note">Each session is private and isolated. Nothing is stored
+          in this browser — closing or reloading the page ends your access to the session.</div>`;
+        el.appendChild(empty);
+        $("startSession").onclick = async () => {
+          const btn = $("startSession");
+          btn.disabled = true; btn.textContent = "Starting…";
+          try { await startSession(); }
+          catch (e) { btn.disabled = false; btn.textContent = "Start a session"; alert(e.message); }
+        };
+        return;
+      }
       empty.innerHTML = docs.length
         ? `<h2>Ready when you are.</h2><p>Ask anything about the documents on the left.</p>`
         : `<h2>Start by adding a document.</h2>
-           <p>DocuMind answers questions using only what you upload — internal runbooks,
-           handbooks, technical docs.</p>
-           <p>When the answer isn't in your documents, it says so instead of guessing.</p>`;
+           <p>Drop a file on the left — PDF, TXT, or MD, up to 100 pages.</p>
+           <p>Everything you upload stays scoped to this session.</p>`;
       if (docs.length) {
         const chips = document.createElement("div");
         chips.className = "chips";
@@ -272,17 +289,21 @@
 
   async function upload(file) {
     const note = $("uploadNote");
+    if (!sessionId) {
+      note.className = "upload-note err";
+      note.textContent = "Start a session first.";
+      return;
+    }
     note.className = "upload-note";
     note.textContent = "Reading " + file.name + "… long documents take a few minutes.";
     try {
-      await ensureSession();
       const form = new FormData();
       form.append("file", file);
       form.append("session_id", sessionId);
       const body = await api("/documents/upload", { method: "POST", body: form });
       docs.push({ name: body.filename, pages: body.page_count, chunks: body.chunk_count });
       note.textContent = "Added " + body.filename + ".";
-      store(); renderDocs(); renderThread();
+      renderDocs(); renderThread();
       $("question").focus();
     } catch (e) {
       note.className = "upload-note err";
@@ -295,7 +316,7 @@
   /* ---------- ask ---------- */
   async function ask() {
     const q = $("question").value.trim();
-    if (!q) return;
+    if (!q || !sessionId) return;
     if (!docs.length) {
       $("uploadNote").className = "upload-note err";
       $("uploadNote").textContent = "Add a document first — answers only come from your uploads.";
@@ -317,22 +338,20 @@
       item.a = e.message; item.state = "error";
     } finally {
       $("ask").disabled = false;
-      store(); renderThread();
+      renderThread();
       $("question").focus();
     }
   }
   $("ask").onclick = ask;
   $("question").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
 
-  $("newSession").onclick = async () => {
-    if (sessionId) localStorage.removeItem("documind_state_" + sessionId);
-    localStorage.removeItem("documind_session");
+  $("newSession").onclick = () => {
+    // back to the gate — the old session id is simply forgotten
     sessionId = null; docs = []; thread = [];
+    $("uploadNote").textContent = "";
     renderSession(); renderDocs(); renderThread();
-    try { await ensureSession(); } catch { /* created lazily on next action */ }
   };
 
-  restore();
   renderSession(); renderDocs(); renderThread();
 </script>
 </body>
