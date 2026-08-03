@@ -5,12 +5,16 @@ The session filter lives inside the match_chunks SQL function
 that can return another session's chunks.
 """
 
+import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 
 from app.config import RETRIEVAL_K
 from app.db.client import get_client
 from app.embeddings import embed_texts
+
+logger = logging.getLogger("documind.retrieval")
 
 
 @dataclass
@@ -26,7 +30,11 @@ def search_chunks(session_id: str, question: str, k: int = RETRIEVAL_K) -> list[
     """Embed the question and return the k most similar chunks in this
     session. Uses the same embedder as ingestion so query and chunk
     vectors share one embedding space."""
+    start = time.perf_counter()
     [query_embedding] = embed_texts([question])
+    embed_ms = round((time.perf_counter() - start) * 1000)
+
+    start = time.perf_counter()
     rows = (
         get_client()
         .rpc(
@@ -39,6 +47,17 @@ def search_chunks(session_id: str, question: str, k: int = RETRIEVAL_K) -> list[
         )
         .execute()
         .data
+    )
+    search_ms = round((time.perf_counter() - start) * 1000)
+
+    # question text deliberately not logged (may contain sensitive content)
+    logger.info(
+        "search: session=%s k=%d embed_ms=%d search_ms=%d top_similarity=%s",
+        session_id,
+        k,
+        embed_ms,
+        search_ms,
+        round(rows[0]["similarity"], 4) if rows else None,
     )
     return [
         RetrievedChunk(

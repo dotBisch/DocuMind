@@ -42,3 +42,13 @@ RETRIEVAL_K = 4
 # the only pinned free option. Temperature 0: deterministic Q&A.
 LLM_MODEL = "gemini-3-flash-preview"
 LLM_TEMPERATURE = 0.0
+
+# Product limits (plan.md scopes the tool to 100-page documents).
+# 20 MB comfortably fits any 100-page text PDF; bigger files are almost
+# always scans, which we can't extract anyway.
+MAX_DOCUMENT_PAGES = 100
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
+# Per-client-IP request budget. Generous for a human demo user, tight
+# enough to stop a loop from burning the day's LLM quota in a minute.
+RATE_LIMIT_PER_MINUTE = 20

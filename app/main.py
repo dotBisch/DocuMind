@@ -1,13 +1,18 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from app import middleware
 from app.api.documents import router as documents_router
 from app.api.query import router as query_router
 from app.api.sessions import router as sessions_router
 
+logging.basicConfig(level=logging.INFO)
+
 app = FastAPI(title="DocuMind")
+middleware.install(app)
 app.include_router(documents_router)
 app.include_router(sessions_router)
 app.include_router(query_router)

@@ -5,9 +5,10 @@ from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile
 
+from app.config import MAX_UPLOAD_BYTES
 from app.db.client import get_client
 from app.ingestion.loader import SUPPORTED_EXTENSIONS, UnsupportedFileType
-from app.ingestion.pipeline import EmptyDocument, ingest_file
+from app.ingestion.pipeline import EmptyDocument, TooManyPages, ingest_file
 from app.models.schemas import UploadResponse
 
 router = APIRouter()
@@ -28,6 +29,13 @@ async def upload_document(
             detail=f"unsupported file type {suffix!r} (supported: {sorted(SUPPORTED_EXTENSIONS)})",
         )
 
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"file too large ({len(content)} bytes; max {MAX_UPLOAD_BYTES})",
+        )
+
     if session_id is None:
         session_id = (
             get_client().table("sessions").insert({}).execute().data[0]["id"]
@@ -36,7 +44,7 @@ async def upload_document(
     # Loaders want a real file path; spool the upload to a temp file.
     # delete=False because Windows can't reopen an open NamedTemporaryFile.
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
+        tmp.write(content)
         tmp_path = Path(tmp.name)
 
     try:
@@ -45,6 +53,8 @@ async def upload_document(
         raise HTTPException(status_code=415, detail=str(exc)) from exc
     except EmptyDocument as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except TooManyPages as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     finally:
         tmp_path.unlink(missing_ok=True)
 

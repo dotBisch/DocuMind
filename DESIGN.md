@@ -144,6 +144,38 @@ pair enters the set. A Q&A pair whose answer isn't in the corpus
 measures nothing; validation is what makes the accuracy number mean
 something.
 
+## Performance
+
+Measured 2026-08-03 (30 sequential + 30 concurrent×8 searches against
+the 362-chunk eval corpus, local machine → Gemini + Supabase):
+
+| Component | p50 | p95 | max |
+|---|---|---|---|
+| Query embedding (Gemini) | 316ms | 392ms | 445ms |
+| pgvector `match_chunks` | 180ms | 535ms | 930ms |
+| **Search end-to-end** | **492ms** | **917ms** | 1375ms |
+| Search under concurrency (8 workers) | 710ms | 912ms | 914ms |
+
+**Sub-second p95 target: met.** Deliberately *not* tuned: HNSW over a
+few hundred vectors does its work in microseconds — the p95 is entirely
+network RTT (embedding API + Supabase REST). Tuning `ef_search` would
+turn a microsecond knob on a millisecond problem; revisit only at
+5–6 figures of vectors per session.
+
 ## Known Limitations / What I'd Do Differently at Scale
 
-_TBD — Phase 7_
+- **Blocking ingestion:** `/documents/upload` holds the HTTP request
+  open while embedding (minutes for big docs on free-tier rate limits).
+  Production answer: return 202 + job id, ingest in a background
+  worker, expose status. Also required by serverless execution caps.
+- **In-memory rate limiter:** per warm serverless instance, so the
+  limit is soft under horizontal scale. Production answer: shared
+  store (Redis or a Postgres counter).
+- **Free-tier LLM daily quota (~20 requests/day/model)** caps the live
+  demo's question volume; paid tier or self-hosted model removes it.
+- **PDF text extraction quality** (glued words, TOC noise in some
+  PDFs) measurably degrades retrieval — the one eval failure traces to
+  it. Production answer: prefer HTML/markdown sources, add a text
+  cleanup pass, and filter boilerplate chunks at ingestion.
+- **No auth:** sessions are unguessable UUIDs (capability URLs), fine
+  for a demo; real deployment needs user auth tied to sessions.

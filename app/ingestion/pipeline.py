@@ -8,6 +8,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.config import MAX_DOCUMENT_PAGES
 from app.db.client import get_client
 from app.embeddings import embed_texts
 from app.ingestion.chunker import chunk_documents
@@ -24,6 +25,10 @@ class EmptyDocument(ValueError):
     """The file contained no extractable text."""
 
 
+class TooManyPages(ValueError):
+    """The document exceeds the supported page count."""
+
+
 @dataclass
 class IngestResult:
     document_id: str
@@ -36,6 +41,10 @@ def ingest_file(path: Path, filename: str, session_id: str) -> IngestResult:
     pages = load_document(path)
     if not pages:
         raise EmptyDocument(f"{filename} contained no extractable text")
+    if len(pages) > MAX_DOCUMENT_PAGES:
+        raise TooManyPages(
+            f"{filename} has {len(pages)} pages; max {MAX_DOCUMENT_PAGES}"
+        )
 
     chunks = chunk_documents(pages)
     embeddings = embed_texts([c.page_content for c in chunks])
