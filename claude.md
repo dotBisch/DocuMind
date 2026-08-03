@@ -19,18 +19,6 @@ That framing affects priorities:
   one-line rationale comment or a line in `DESIGN.md` — not just the number.
 - The eval methodology is a first-class deliverable, not a nice-to-have.
 
-## How we work together
-
-- Teach git as we go: explain the command or workflow when it matters, not just
-  the result.
-- Call out best practices when they affect the change, especially around diffs,
-  branches, commits, and review hygiene.
-- Before any commit, pause for a short quiz so I can confirm I understand what
-  we changed and why.
-- Keep the quiz lightweight and practical; focus on the current work, not trivia.
-- If a faster path would skip a good learning moment, mention the tradeoff so I
-  can choose deliberately.
-
 ## Stack (do not swap without discussion)
 
 - Backend: Python, FastAPI
